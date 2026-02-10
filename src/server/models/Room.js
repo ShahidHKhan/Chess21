@@ -15,6 +15,14 @@ class Room {
       white: [],
       black: [],
     };
+    const tenMinutesMs = 10 * 60 * 1000;
+    this.timers = {
+      whiteMs: tenMinutesMs,
+      blackMs: tenMinutesMs,
+      active: "w",
+      paused: true,
+      lastTick: Date.now(),
+    };
   }
 }
 

@@ -6,6 +6,30 @@ function getOpponentId(roomState, socketId) {
   return Object.keys(roomState.players).find((id) => id !== socketId) || null;
 }
 
+function emitTimerUpdate(io, roomId, roomState) {
+  if (!roomState?.timers) {
+    return;
+  }
+  const { whiteMs, blackMs, active, paused } = roomState.timers;
+  io.to(roomId).emit(EVENTS.TIMER_UPDATE, {
+    whiteMs,
+    blackMs,
+    active,
+    paused,
+  });
+}
+
+function setActiveTimer(roomState, { paused } = {}) {
+  if (!roomState?.timers) {
+    return;
+  }
+  roomState.timers.active = roomState.game.turn();
+  if (typeof paused === "boolean") {
+    roomState.timers.paused = paused;
+  }
+  roomState.timers.lastTick = Date.now();
+}
+
 function startBlackjackRound(io, roomId, roomState, pendingMove, attackerId, defenderId) {
   const deck = blackjackService.shuffle(blackjackService.createDeck());
   const { hitterHand, dealerHand } = blackjackService.dealInitial(deck);
@@ -87,6 +111,8 @@ function startDealerDraw(io, roomId, roomState) {
         winnerId: resolution?.winnerId,
         loserId: resolution?.loserId,
       });
+      setActiveTimer(currentState, { paused: currentState.phase === PHASES.GAME_OVER });
+      emitTimerUpdate(io, roomId, currentState);
       return;
     }
 
@@ -110,11 +136,22 @@ module.exports = (io, socket, roomManager) => {
   const { room, color, started } = roomManager.assignRoom(socket.id);
   socket.join(room.id);
   socket.emit(EVENTS.ROOM_ASSIGNED, { roomId: room.id, color });
+  if (room.timers) {
+    setActiveTimer(room, { paused: !started });
+    socket.emit(EVENTS.TIMER_UPDATE, {
+      whiteMs: room.timers.whiteMs,
+      blackMs: room.timers.blackMs,
+      active: room.timers.active,
+      paused: room.timers.paused,
+    });
+  }
   if (started) {
+    setActiveTimer(room, { paused: false });
     io.to(room.id).emit(EVENTS.GAME_READY, {
       fen: room.game.fen(),
       captured: room.captured,
     });
+    emitTimerUpdate(io, room.id, room);
   }
 
   socket.on(EVENTS.MAKE_MOVE, ({ roomId, move }) => {
@@ -234,6 +271,8 @@ module.exports = (io, socket, roomManager) => {
       fen: game.fen(),
       turn: game.turn(),
     });
+    setActiveTimer(roomState, { paused: false });
+    emitTimerUpdate(io, roomId, roomState);
   });
 
   socket.on(EVENTS.BLACKJACK_HIT, ({ roomId }) => {
@@ -289,6 +328,8 @@ module.exports = (io, socket, roomManager) => {
         winnerId: resolution?.winnerId,
         loserId: resolution?.loserId,
       });
+      setActiveTimer(roomState, { paused: roomState.phase === PHASES.GAME_OVER });
+      emitTimerUpdate(io, roomId, roomState);
     }
   });
 
@@ -312,6 +353,16 @@ module.exports = (io, socket, roomManager) => {
     }
 
     startDealerDraw(io, roomId, roomState);
+  });
+
+  socket.on(EVENTS.TIMER_TOGGLE, ({ roomId }) => {
+    const roomState = roomManager.getRoom(roomId);
+    if (!roomState || !roomState.timers || roomState.phase === PHASES.GAME_OVER) {
+      return;
+    }
+    roomState.timers.paused = !roomState.timers.paused;
+    roomState.timers.lastTick = Date.now();
+    emitTimerUpdate(io, roomId, roomState);
   });
 
   socket.on("disconnect", () => {

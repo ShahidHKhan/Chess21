@@ -49,6 +49,10 @@ export class SocketClient {
     this.on(EVENTS.UPDATE_BOARD, callback);
   }
 
+  onTimerUpdate(callback) {
+    this.on(EVENTS.TIMER_UPDATE, callback);
+  }
+
   emitMove(payload) {
     this.emit(EVENTS.MAKE_MOVE, payload);
   }
@@ -59,5 +63,9 @@ export class SocketClient {
 
   emitBlackjackStand(payload) {
     this.emit(EVENTS.BLACKJACK_STAND, payload);
+  }
+
+  emitTimerToggle(payload) {
+    this.emit(EVENTS.TIMER_TOGGLE, payload);
   }
 }

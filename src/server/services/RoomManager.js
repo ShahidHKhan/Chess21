@@ -50,6 +50,10 @@ class RoomManager {
     return this.rooms.get(roomId);
   }
 
+  getRooms() {
+    return this.rooms;
+  }
+
   removePlayer(socketId) {
     for (const [roomId, room] of this.rooms.entries()) {
       if (!room.players[socketId]) {

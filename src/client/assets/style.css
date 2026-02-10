@@ -189,16 +189,51 @@ h1 {
 .turn-signal {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 15px;
+  gap: 14px;
+  font-size: 17px;
   margin-bottom: 10px;
 }
 
+.turn-timers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(6, 10, 20, 0.45);
+  min-width: 120px;
+}
+
+.timer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.timer.active {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.timer-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+.timer-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+}
+
 .turn-dot {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
 }
 
 .turn-dot.go {
@@ -213,6 +248,8 @@ h1 {
 
 .turn-text {
   color: var(--muted);
+  font-size: 18px;
+  font-weight: 700;
 }
 
 #blackjack-table {
@@ -469,6 +506,11 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+}
+
+.pause-btn-turn {
+  margin-left: auto;
+  padding: 10px 18px;
 }
 
 .eval-label {

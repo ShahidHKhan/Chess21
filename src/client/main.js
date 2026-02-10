@@ -11,6 +11,10 @@ const colorEl = document.getElementById("player-color");
 const phasePill = document.getElementById("phase-pill");
 const turnDot = document.getElementById("turn-dot");
 const turnText = document.getElementById("turn-text");
+const timerWhiteEl = document.getElementById("timer-white");
+const timerBlackEl = document.getElementById("timer-black");
+const timerWhiteValueEl = document.getElementById("timer-white-value");
+const timerBlackValueEl = document.getElementById("timer-black-value");
 const chessBoardEl = document.getElementById("chess-board");
 const rankLabelsEl = document.getElementById("rank-labels");
 const fileLabelsEl = document.getElementById("file-labels");
@@ -31,6 +35,7 @@ const resultModalEl = document.getElementById("result-modal");
 const resultTitleEl = document.getElementById("result-title");
 const resultMessageEl = document.getElementById("result-message");
 const resultCloseBtn = document.getElementById("result-close");
+const pauseBtn = document.getElementById("pause-btn");
 
 const socketClient = new SocketClient();
 const boardRenderer = new BoardRenderer({
@@ -71,6 +76,12 @@ let localSocketId = null;
 let pendingBoardUpdate = null;
 let gameOver = false;
 let threatenedSquare = null;
+let timerState = {
+  whiteMs: 10 * 60 * 1000,
+  blackMs: 10 * 60 * 1000,
+  active: "w",
+  paused: true,
+};
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -94,6 +105,26 @@ function updateTurnSignal() {
   const isMyTurn = currentTurn === playerColor[0];
   turnDot.className = `turn-dot ${isMyTurn ? "go" : "wait"}`;
   turnText.textContent = isMyTurn ? "Your turn" : "Waiting for opponent";
+}
+
+function formatTime(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function renderTimers() {
+  if (!timerWhiteValueEl || !timerBlackValueEl || !timerWhiteEl || !timerBlackEl) {
+    return;
+  }
+  timerWhiteValueEl.textContent = formatTime(timerState.whiteMs);
+  timerBlackValueEl.textContent = formatTime(timerState.blackMs);
+  timerWhiteEl.classList.toggle("active", timerState.active === "w" && !timerState.paused);
+  timerBlackEl.classList.toggle("active", timerState.active === "b" && !timerState.paused);
+  if (pauseBtn) {
+    pauseBtn.textContent = timerState.paused ? "Resume timer" : "Pause timer";
+  }
 }
 
 function updateEvaluation() {
@@ -313,6 +344,17 @@ socketClient.onUpdateBoard(({
   }, message);
 });
 
+socketClient.onTimerUpdate(({ whiteMs, blackMs, active, paused }) => {
+  timerState = {
+    ...timerState,
+    whiteMs: typeof whiteMs === "number" ? whiteMs : timerState.whiteMs,
+    blackMs: typeof blackMs === "number" ? blackMs : timerState.blackMs,
+    active: active || timerState.active,
+    paused: typeof paused === "boolean" ? paused : timerState.paused,
+  };
+  renderTimers();
+});
+
 hitBtn.addEventListener("click", () => {
   if (!currentRoomId || !blackjackActive) {
     return;
@@ -327,5 +369,15 @@ standBtn.addEventListener("click", () => {
   socketClient.emitBlackjackStand({ roomId: currentRoomId });
 });
 
+if (pauseBtn) {
+  pauseBtn.addEventListener("click", () => {
+    if (!currentRoomId) {
+      return;
+    }
+    socketClient.emitTimerToggle({ roomId: currentRoomId });
+  });
+}
+
 setPhase("Connecting...", false);
 updateTurnSignal();
+renderTimers();

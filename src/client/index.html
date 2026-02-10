@@ -68,8 +68,19 @@
         <h1>Chess21</h1>
         <div class="status-pill" id="phase-pill">Connecting...</div>
         <div class="turn-signal" id="turn-signal">
+          <div class="turn-timers" id="turn-timers">
+            <div class="timer" id="timer-white">
+              <span class="timer-label">White</span>
+              <span class="timer-value" id="timer-white-value">10:00</span>
+            </div>
+            <div class="timer" id="timer-black">
+              <span class="timer-label">Black</span>
+              <span class="timer-value" id="timer-black-value">10:00</span>
+            </div>
+          </div>
           <div class="turn-dot wait" id="turn-dot"></div>
           <div class="turn-text" id="turn-text">Waiting...</div>
+          <button class="btn secondary pause-btn pause-btn-turn" id="pause-btn">Pause timer</button>
         </div>
         <div class="status" id="status">Connecting to server...</div>
         <div class="board-wrap">
