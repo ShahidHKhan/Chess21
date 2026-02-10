@@ -103,7 +103,7 @@ function updateEvaluation() {
   const score = calculateMaterialScore(currentFen);
   const clamped = Math.max(-10, Math.min(10, score));
   const fillPercent = 50 + clamped * 5;
-  evalFillEl.style.height = `${fillPercent}%`;
+  evalFillEl.style.width = `${fillPercent}%`;
 
   if (score > 0) {
     evalWhiteEl.textContent = `White +${score}`;
