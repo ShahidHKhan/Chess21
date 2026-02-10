@@ -41,3 +41,6 @@ Then open http://localhost:3000 in two browser windows.
 
 - Run `node -v` to confirm Node is installed.
 - If the page loads without a board, check the browser console for errors.
+
+
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/ba1d6392-306b-489a-a810-b6e76b4a8cb6" />
