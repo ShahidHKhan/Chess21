@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chess21</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <section class="panel" id="blackjack-panel">
+        <h1>Blackjack</h1>
+        <div id="blackjack-table" class="active">
+          <div class="bj-top">
+            <div class="bj-header">
+              <div class="bj-title">Blackjack Duel</div>
+              <div class="bj-state" id="bj-state">Waiting...</div>
+            </div>
+            <div class="bj-row">
+              <div class="bj-label">Dealer</div>
+              <div>
+                <div class="cards" id="dealer-cards"></div>
+                <div class="bj-state" id="dealer-score">Score: -</div>
+              </div>
+            </div>
+            <div class="bj-row">
+              <div class="bj-label">Attacker</div>
+              <div>
+                <div class="cards" id="hitter-cards"></div>
+                <div class="bj-state" id="hitter-score">Score: -</div>
+              </div>
+            </div>
+            <div class="bj-controls">
+              <button class="btn" id="hit-btn" disabled>Hit</button>
+              <button class="btn secondary" id="stand-btn" disabled>Stand</button>
+            </div>
+          </div>
+          <div class="bj-bottom">
+            <div class="captured-panel">
+              <div class="captured-title">Captured</div>
+              <div class="captured-row">
+                <div class="captured-label">White</div>
+                <div class="captured-pieces" id="captured-white"></div>
+              </div>
+              <div class="captured-row">
+                <div class="captured-label">Black</div>
+                <div class="captured-pieces" id="captured-black"></div>
+              </div>
+            </div>
+            <div class="eval-panel">
+              <div class="eval-title">Evaluation</div>
+              <div class="eval-body">
+                <div class="eval-bar">
+                  <div class="eval-fill" id="eval-fill"></div>
+                </div>
+                <div class="eval-labels">
+                  <div class="eval-label" id="eval-white">White +0</div>
+                  <div class="eval-label" id="eval-black">Black +0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="chess-panel">
+        <h1>Chess21</h1>
+        <div class="status-pill" id="phase-pill">Connecting...</div>
+        <div class="turn-signal" id="turn-signal">
+          <div class="turn-dot wait" id="turn-dot"></div>
+          <div class="turn-text" id="turn-text">Waiting...</div>
+        </div>
+        <div class="status" id="status">Connecting to server...</div>
+        <div class="board-wrap">
+          <div class="rank-labels" id="rank-labels"></div>
+          <div>
+            <div id="chess-board" aria-label="Chess board"></div>
+            <div class="file-labels" id="file-labels"></div>
+          </div>
+        </div>
+        <div class="meta">Room: <span id="room-id">-</span></div>
+        <div class="meta">Color: <span id="player-color">-</span></div>
+      </section>
+    </div>
+
+    <div class="result-modal" id="result-modal" aria-hidden="true">
+      <div class="result-card">
+        <div class="result-title" id="result-title">Game Over</div>
+        <div class="result-message" id="result-message">Game finished.</div>
+        <button class="btn" id="result-close">Close</button>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/shared/constants.js"></script>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
