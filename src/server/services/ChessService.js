@@ -162,7 +162,7 @@ class ChessService {
       }
     }
 
-    if (!attackerWins && !gameOver && !isPush) {
+    if (!attackerWins && !gameOver) {
       this.swapTurn(game);
     }
 

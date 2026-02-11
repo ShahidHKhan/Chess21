@@ -8,12 +8,16 @@ const { EVENTS, PHASES } = require("../shared/constants");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_ORIGIN || "*",
+  },
+});
 const roomManager = new RoomManager();
 
 const PORT = process.env.PORT || 3000;
 
-const clientRoot = path.join(__dirname, "..", "client");
+const clientRoot = path.join(__dirname, "..", "..", "my-react-app", "dist");
 const sharedRoot = path.join(__dirname, "..", "shared");
 const TIMER_TICK_MS = 500;
 

@@ -5,6 +5,9 @@
   "main": "src/server/index.js",
   "scripts": {
     "start": "node server.js",
+    "client:dev": "npm --prefix my-react-app run dev",
+    "client:build": "npm --prefix my-react-app run build",
+    "client:preview": "npm --prefix my-react-app run preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
