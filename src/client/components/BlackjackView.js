@@ -29,16 +29,39 @@ export class BlackjackView {
 
   setScores({ hitterScore, dealerScore }) {
     if (typeof hitterScore === "number") {
-      this.hitterScoreEl.textContent = `Score: ${hitterScore}`;
+      this.renderScoreSlots(this.hitterScoreEl, hitterScore);
     }
     if (typeof dealerScore === "number") {
-      this.dealerScoreEl.textContent = `Score: ${dealerScore}`;
+      this.renderScoreSlots(this.dealerScoreEl, dealerScore);
     }
   }
 
   resetScores() {
-    this.hitterScoreEl.textContent = "Score: ?";
-    this.dealerScoreEl.textContent = "Score: ?";
+    this.renderScoreSlots(this.hitterScoreEl, null);
+    this.renderScoreSlots(this.dealerScoreEl, null);
+  }
+
+  renderScoreSlots(container, score) {
+    container.innerHTML = "";
+    const slots = 3;
+    const suits = ["\u2660", "\u2665", "\u2666", "\u2663"];
+    const suit = typeof score === "number" ? suits[Math.abs(score) % suits.length] : null;
+    for (let i = 0; i < slots; i += 1) {
+      const slot = document.createElement("div");
+      slot.className = "score-slot";
+      if (i === 0 && typeof score === "number") {
+        const card = document.createElement("div");
+        const isRed = suit === "\u2665" || suit === "\u2666";
+        card.className = `score-card ${isRed ? "red" : ""}`.trim();
+        card.textContent = score;
+        const suitEl = document.createElement("div");
+        suitEl.className = "score-suit";
+        suitEl.textContent = suit;
+        card.appendChild(suitEl);
+        slot.appendChild(card);
+      }
+      container.appendChild(slot);
+    }
   }
 
   setControlsEnabled(canAct) {

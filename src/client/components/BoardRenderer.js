@@ -18,6 +18,8 @@ export class BoardRenderer {
       playerColor: null,
       blackjackActive: false,
       threatenedSquare: null,
+      lastMove: null,
+      validMoves: [],
     };
 
     this.setupLabels();
@@ -93,7 +95,7 @@ export class BoardRenderer {
   }
 
   render() {
-    const { fen, selectedSquare, playerColor, blackjackActive, threatenedSquare } = this.state;
+    const { fen, selectedSquare, playerColor, blackjackActive, threatenedSquare, lastMove, validMoves } = this.state;
     this.boardEl.innerHTML = "";
     const board = fenToBoard(fen);
     const flipped = playerColor === "black";
@@ -113,11 +115,20 @@ export class BoardRenderer {
           square.classList.add("selected");
         }
 
+        if (lastMove && (actualName === lastMove.from || actualName === lastMove.to)) {
+          square.classList.add("last-move");
+        }
+
+        if (Array.isArray(validMoves) && validMoves.includes(actualName)) {
+          square.classList.add("valid-move");
+        }
+
         if (blackjackActive && threatenedSquare === actualName) {
           square.classList.add("threatened");
         }
 
         if (piece) {
+          square.classList.add("has-piece");
           const pieceEl = document.createElement("div");
           const isWhite = piece === piece.toUpperCase();
           pieceEl.className = `piece ${isWhite ? "white" : "black"}`;

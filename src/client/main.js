@@ -18,6 +18,8 @@ const timerBlackValueEl = document.getElementById("timer-black-value");
 const chessBoardEl = document.getElementById("chess-board");
 const rankLabelsEl = document.getElementById("rank-labels");
 const fileLabelsEl = document.getElementById("file-labels");
+const blackjackPanelEl = document.getElementById("blackjack-panel");
+const chessPanelEl = document.getElementById("chess-panel");
 const blackjackEl = document.getElementById("blackjack-table");
 const bjStateEl = document.getElementById("bj-state");
 const dealerCardsEl = document.getElementById("dealer-cards");
@@ -76,6 +78,9 @@ let localSocketId = null;
 let pendingBoardUpdate = null;
 let gameOver = false;
 let threatenedSquare = null;
+let lastMove = null;
+let validMoves = [];
+let pendingBlackjackMove = null;
 let timerState = {
   whiteMs: 10 * 60 * 1000,
   blackMs: 10 * 60 * 1000,
@@ -96,15 +101,46 @@ function setBlackjackVisible(isVisible) {
   blackjackView.setActive(isVisible);
 }
 
+function updateActivePanels() {
+  const canChessAct =
+    !blackjackActive &&
+    !gameOver &&
+    Boolean(currentTurn && playerColor && currentTurn === playerColor[0]);
+  const canBlackjackAct = blackjackActive && !gameOver && attackerId === localSocketId;
+  if (blackjackPanelEl) {
+    blackjackPanelEl.classList.toggle("active-panel", canBlackjackAct);
+  }
+  if (chessPanelEl) {
+    chessPanelEl.classList.toggle("active-panel", canChessAct);
+  }
+  if (phasePill) {
+    phasePill.classList.toggle("pulse", canChessAct);
+  }
+}
+
 function updateTurnSignal() {
   if (!currentTurn || !playerColor) {
     turnDot.className = "turn-dot wait";
     turnText.textContent = "Waiting...";
+    updateActivePanels();
     return;
   }
   const isMyTurn = currentTurn === playerColor[0];
   turnDot.className = `turn-dot ${isMyTurn ? "go" : "wait"}`;
   turnText.textContent = isMyTurn ? "Your turn" : "Waiting for opponent";
+  updateActivePanels();
+}
+
+function getValidMovesForSquare(square) {
+  if (!square || !currentFen || typeof window.Chess !== "function") {
+    return [];
+  }
+  try {
+    const engine = new window.Chess(currentFen);
+    return engine.moves({ square, verbose: true }).map((move) => move.to);
+  } catch (error) {
+    return [];
+  }
 }
 
 function formatTime(ms) {
@@ -134,7 +170,7 @@ function updateEvaluation() {
   const score = calculateMaterialScore(currentFen);
   const clamped = Math.max(-10, Math.min(10, score));
   const fillPercent = 50 + clamped * 5;
-  evalFillEl.style.width = `${fillPercent}%`;
+  evalFillEl.style.height = `${fillPercent}%`;
 
   if (score > 0) {
     evalWhiteEl.textContent = `White +${score}`;
@@ -155,6 +191,8 @@ function renderBoard() {
     playerColor,
     blackjackActive,
     threatenedSquare,
+    lastMove,
+    validMoves,
   });
   boardRenderer.render();
   updateEvaluation();
@@ -182,6 +220,12 @@ function queueBoardUpdate(payload, message) {
     attackerId = null;
     gameOver = Boolean(isGameOver);
     threatenedSquare = null;
+    if (pendingBlackjackMove) {
+      lastMove = pendingBlackjackMove;
+      pendingBlackjackMove = null;
+    }
+    selectedSquare = null;
+    validMoves = [];
     setPhase("Chess phase", true);
     setBlackjackVisible(false);
     updateTurnSignal();
@@ -220,8 +264,10 @@ function handleSquareClick(square) {
 
   if (!selectedSquare) {
     selectedSquare = square;
+    validMoves = getValidMovesForSquare(square);
   } else if (selectedSquare === square) {
     selectedSquare = null;
+    validMoves = [];
   } else {
     const targetSquare = boardRenderer.resolveCastlingTarget(selectedSquare, square);
     socketClient.emitMove({
@@ -229,6 +275,7 @@ function handleSquareClick(square) {
       move: { from: selectedSquare, to: targetSquare },
     });
     selectedSquare = null;
+    validMoves = [];
   }
   renderBoard();
 }
@@ -255,6 +302,8 @@ socketClient.onGameReady(({ fen, captured }) => {
   blackjackActive = false;
   gameOver = false;
   threatenedSquare = null;
+  lastMove = null;
+  validMoves = [];
   capturedView.setCaptured(captured || { white: [], black: [] });
   setBlackjackVisible(false);
   resultModal.hide();
@@ -266,6 +315,9 @@ socketClient.onMoveMade(({ move, fen }) => {
   setStatus(`Move: ${move.san} | FEN: ${fen}`);
   currentFen = fen;
   currentTurn = fen.split(" ")[1];
+  lastMove = { from: move.from, to: move.to };
+  selectedSquare = null;
+  validMoves = [];
   updateTurnSignal();
   renderBoard();
 });
@@ -288,6 +340,9 @@ socketClient.onStartBlackjack(({
 }) => {
   blackjackActive = true;
   attackerId = hitterId;
+  pendingBlackjackMove = move?.from && move?.to ? { from: move.from, to: move.to } : null;
+  selectedSquare = null;
+  validMoves = [];
   if (move && typeof move.from === "string" && typeof move.to === "string") {
     threatenedSquare = reason === "PROMOTION" ? move.from : (captureSquare || move.to);
   } else {
