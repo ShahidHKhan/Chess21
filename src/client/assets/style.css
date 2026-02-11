@@ -41,11 +41,16 @@ body {
 }
 
 .game-shell {
-  width: min(1280px, 100%);
+  width: min(1400px, 100%);
   padding: 22px;
   border-radius: 24px;
-  background: linear-gradient(160deg, rgba(18, 26, 44, 0.95), rgba(9, 13, 24, 0.98)) padding-box,
-    linear-gradient(135deg, rgba(245, 197, 66, 0.6), rgba(120, 180, 255, 0.5), rgba(245, 197, 66, 0.25))
+  background: linear-gradient(160deg, rgba(18, 26, 44, 0.96), rgba(9, 13, 24, 0.99)) padding-box,
+    conic-gradient(
+        from 180deg,
+        rgba(245, 197, 66, 0.18),
+        rgba(245, 197, 66, 0.08),
+        rgba(245, 197, 66, 0.18)
+      )
       border-box;
   border: 1px solid transparent;
   box-shadow: 0 40px 80px rgba(5, 9, 20, 0.65);
@@ -54,9 +59,14 @@ body {
 .layout {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(90px, 120px) minmax(360px, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(360px, 460px) minmax(90px, 120px) minmax(420px, 1fr);
+  gap: 8px;
   align-items: stretch;
+}
+
+#blackjack-panel {
+  display: flex;
+  flex-direction: column;
 }
 
 .panel {
@@ -67,6 +77,14 @@ body {
   border: 1px solid var(--panel-border);
   position: relative;
   overflow: hidden;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top left, rgba(245, 197, 66, 0.18), transparent 40%);
+  pointer-events: none;
 }
 
 .panel--glass {
@@ -86,14 +104,6 @@ body {
   border-color: var(--active-gold);
   box-shadow: 0 0 0 1px var(--active-gold), 0 0 26px rgba(245, 197, 66, 0.4),
     0 0 60px rgba(245, 197, 66, 0.2);
-}
-
-.panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at top left, rgba(245, 197, 66, 0.18), transparent 40%);
-  pointer-events: none;
 }
 
 h1 {
@@ -326,7 +336,10 @@ h1 {
   display: grid;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
-  min-height: 640px;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
 }
 
 #blackjack-table.active {
@@ -434,13 +447,6 @@ h1 {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-
-.cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .card {
   width: 56px;
   height: 78px;
@@ -578,34 +584,28 @@ h1 {
 }
 
 .eval-body {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 12px;
+  display: flex;
+  flex: 1;
+  position: relative;
+  justify-content: center;
   align-items: center;
+  padding: 12px 0;
 }
 
 .eval-bar {
-  width: 18px;
-  height: 100%;
-  min-height: 320px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #f3f0e6 0%, #2b2f3f 100%);
-  border: 2px solid rgba(255, 255, 255, 0.18);
+  width: 20px;
+  height: calc(100% - 24px);
+  min-height: 300px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  border: 1px solid #2b2b2b;
   position: relative;
   overflow: hidden;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35);
 }
 
 .eval-bar::before {
-  content: "";
-  position: absolute;
-  bottom: 50%;
-  left: 3px;
-  right: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.35);
-  transform: translateY(1px);
+  content: none;
 }
 
 .eval-fill {
@@ -614,16 +614,19 @@ h1 {
   right: 0;
   bottom: 0;
   height: 50%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.12));
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
-  transition: height 200ms ease;
+  background: #1a1a1a;
+  box-shadow: none;
+  transition: height 0.5s ease-in-out;
 }
 
 .eval-labels {
+  position: absolute;
+  inset: 6px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  pointer-events: none;
 }
 
 .pause-btn-turn {
@@ -632,20 +635,27 @@ h1 {
 }
 
 .eval-label {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 11px;
+  color: #f0f0f0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  letter-spacing: 0.02em;
+  mix-blend-mode: difference;
 }
 
 .eval-panel--divider {
-  display: grid;
-  place-items: center;
-  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
   background: rgba(10, 16, 30, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   margin-top: 0;
-  padding-top: 18px;
-  border-top: none;
+  align-self: stretch;
+}
+
+.eval-panel--divider.flip-labels .eval-labels {
+  flex-direction: column-reverse;
 }
 
 .btn {

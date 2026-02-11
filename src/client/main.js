@@ -30,6 +30,7 @@ const hitBtn = document.getElementById("hit-btn");
 const standBtn = document.getElementById("stand-btn");
 const capturedWhiteEl = document.getElementById("captured-white");
 const capturedBlackEl = document.getElementById("captured-black");
+const evalPanelEl = document.getElementById("eval-panel");
 const evalFillEl = document.getElementById("eval-fill");
 const evalWhiteEl = document.getElementById("eval-white");
 const evalBlackEl = document.getElementById("eval-black");
@@ -163,6 +164,10 @@ function renderTimers() {
   }
 }
 
+function formatEvalValue(score) {
+  return `+${Math.abs(score).toFixed(1)}`;
+}
+
 function updateEvaluation() {
   if (!evalFillEl || !evalWhiteEl || !evalBlackEl) {
     return;
@@ -172,15 +177,13 @@ function updateEvaluation() {
   const fillPercent = 50 + clamped * 5;
   evalFillEl.style.height = `${fillPercent}%`;
 
-  if (score > 0) {
-    evalWhiteEl.textContent = `White +${score}`;
-    evalBlackEl.textContent = "Black +0";
-  } else if (score < 0) {
-    evalWhiteEl.textContent = "White +0";
-    evalBlackEl.textContent = `Black +${Math.abs(score)}`;
-  } else {
-    evalWhiteEl.textContent = "White +0";
-    evalBlackEl.textContent = "Black +0";
+  const whiteLabel = `White ${score > 0 ? formatEvalValue(score) : "+0.0"}`;
+  const blackLabel = `Black ${score < 0 ? formatEvalValue(score) : "+0.0"}`;
+  evalWhiteEl.textContent = whiteLabel;
+  evalBlackEl.textContent = blackLabel;
+
+  if (evalPanelEl) {
+    evalPanelEl.classList.toggle("flip-labels", playerColor === "black");
   }
 }
 
