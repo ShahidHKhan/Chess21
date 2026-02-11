@@ -8,98 +8,99 @@
     <link rel="stylesheet" href="/assets/style.css" />
   </head>
   <body>
-    <div class="game-shell">
-      <div class="layout">
-        <section class="panel panel--glass" id="blackjack-panel">
-          <h1>Blackjack</h1>
-          <div id="blackjack-table" class="active">
-            <div class="bj-top">
-              <div class="bj-header">
-                <div class="bj-title">Blackjack Duel</div>
-                <div class="bj-state" id="bj-state">Waiting...</div>
-              </div>
-              <div class="bj-row">
-                <div class="bj-label">Dealer</div>
-                <div>
-                  <div class="cards" id="dealer-cards"></div>
-                  <div class="bj-score">
-                    <div class="score-label">Score</div>
-                    <div class="score-slots" id="dealer-score"></div>
-                  </div>
+    <div class="page-layout">
+      <section class="panel panel--glass" id="blackjack-panel">
+        <h1>Blackjack</h1>
+        <div id="blackjack-table" class="active">
+          <div class="bj-top">
+            <div class="bj-header">
+              <div class="bj-title">Blackjack Duel</div>
+              <div class="bj-state" id="bj-state">Waiting...</div>
+            </div>
+            <div class="bj-row">
+              <div class="bj-label">Dealer</div>
+              <div>
+                <div class="cards" id="dealer-cards"></div>
+                <div class="bj-score">
+                  <div class="score-label">Score</div>
+                  <div class="score-slots" id="dealer-score"></div>
                 </div>
-              </div>
-              <div class="bj-row">
-                <div class="bj-label">Attacker</div>
-                <div>
-                  <div class="cards" id="hitter-cards"></div>
-                  <div class="bj-score">
-                    <div class="score-label">Score</div>
-                    <div class="score-slots" id="hitter-score"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="bj-controls">
-                <button class="btn hit" id="hit-btn" disabled>Hit</button>
-                <button class="btn stand" id="stand-btn" disabled>Stand</button>
               </div>
             </div>
-            <div class="bj-bottom">
-              <div class="captured-panel">
-                <div class="captured-title">Captured</div>
-                <div class="captured-row">
-                  <div class="captured-label">White</div>
-                  <div class="captured-pieces" id="captured-white"></div>
-                </div>
-                <div class="captured-row">
-                  <div class="captured-label">Black</div>
-                  <div class="captured-pieces" id="captured-black"></div>
+            <div class="bj-row">
+              <div class="bj-label">Attacker</div>
+              <div>
+                <div class="cards" id="hitter-cards"></div>
+                <div class="bj-score">
+                  <div class="score-label">Score</div>
+                  <div class="score-slots" id="hitter-score"></div>
                 </div>
               </div>
+            </div>
+            <div class="bj-controls">
+              <button class="btn hit" id="hit-btn" disabled>Hit</button>
+              <button class="btn stand" id="stand-btn" disabled>Stand</button>
             </div>
           </div>
-        </section>
-
+          <div class="bj-bottom">
+          </div>
+        </div>
+        <div class="bj-divider" aria-hidden="true"></div>
         <aside class="eval-panel eval-panel--divider" id="eval-panel">
           <div class="eval-body">
-            <div class="eval-bar">
-              <div class="eval-fill" id="eval-fill"></div>
-            </div>
             <div class="eval-labels">
               <div class="eval-label" id="eval-white">White +0</div>
               <div class="eval-label" id="eval-black">Black +0</div>
             </div>
+            <div class="eval-bar">
+              <div class="eval-fill" id="eval-fill"></div>
+            </div>
+          </div>
+          <div class="eval-captured">
+            <div class="captured-row">
+              <div class="captured-label">White</div>
+              <div class="captured-pieces" id="captured-white"></div>
+            </div>
+            <div class="captured-row">
+              <div class="captured-label">Black</div>
+              <div class="captured-pieces" id="captured-black"></div>
+            </div>
           </div>
         </aside>
+      </section>
 
-        <section class="panel" id="chess-panel">
-          <h1>Chess21</h1>
-          <div class="status-pill" id="phase-pill">Connecting...</div>
-          <div class="turn-signal" id="turn-signal">
-            <div class="turn-timers" id="turn-timers">
-              <div class="timer" id="timer-white">
-                <span class="timer-label">White</span>
-                <span class="timer-value" id="timer-white-value">10:00</span>
+      <div class="game-shell">
+        <div class="layout">
+          <section class="panel" id="chess-panel">
+            <h1>Chess21</h1>
+            <div class="status-pill" id="phase-pill">Connecting...</div>
+            <div class="turn-signal" id="turn-signal">
+              <div class="turn-timers" id="turn-timers">
+                <div class="timer" id="timer-white">
+                  <span class="timer-label">White</span>
+                  <span class="timer-value" id="timer-white-value">10:00</span>
+                </div>
+                <div class="timer" id="timer-black">
+                  <span class="timer-label">Black</span>
+                  <span class="timer-value" id="timer-black-value">10:00</span>
+                </div>
               </div>
-              <div class="timer" id="timer-black">
-                <span class="timer-label">Black</span>
-                <span class="timer-value" id="timer-black-value">10:00</span>
+              <div class="turn-dot wait" id="turn-dot"></div>
+              <div class="turn-text" id="turn-text">Waiting...</div>
+              <button class="btn secondary pause-btn pause-btn-turn" id="pause-btn">Pause timer</button>
+            </div>
+            <div class="status" id="status">Connecting to server...</div>
+            <div class="board-wrap">
+              <div class="rank-labels" id="rank-labels"></div>
+              <div>
+                <div id="chess-board" aria-label="Chess board"></div>
+                <div class="file-labels" id="file-labels"></div>
               </div>
             </div>
-            <div class="turn-dot wait" id="turn-dot"></div>
-            <div class="turn-text" id="turn-text">Waiting...</div>
-            <button class="btn secondary pause-btn pause-btn-turn" id="pause-btn">Pause timer</button>
-          </div>
-          <div class="status" id="status">Connecting to server...</div>
-          <div class="board-wrap">
-            <div class="rank-labels" id="rank-labels"></div>
-            <div>
-              <div id="chess-board" aria-label="Chess board"></div>
-              <div class="file-labels" id="file-labels"></div>
-            </div>
-          </div>
-          <div class="meta">Room: <span id="room-id">-</span></div>
-          <div class="meta">Color: <span id="player-color">-</span></div>
-        </section>
+            <div class="meta">Room: <span id="room-id">-</span></div>
+            <div class="meta">Color: <span id="player-color">-</span></div>
+          </section>
+        </div>
       </div>
     </div>
 

@@ -29,34 +29,24 @@ export class BlackjackView {
 
   setScores({ hitterScore, dealerScore }) {
     if (typeof hitterScore === "number") {
-      this.renderScoreSlots(this.hitterScoreEl, hitterScore);
+      this.renderScoreText(this.hitterScoreEl, hitterScore);
     }
     if (typeof dealerScore === "number") {
-      this.renderScoreSlots(this.dealerScoreEl, dealerScore);
+      this.renderScoreText(this.dealerScoreEl, dealerScore);
     }
   }
 
   resetScores() {
-    this.renderScoreSlots(this.hitterScoreEl, null);
-    this.renderScoreSlots(this.dealerScoreEl, null);
+    this.renderScoreText(this.hitterScoreEl, null);
+    this.renderScoreText(this.dealerScoreEl, null);
   }
 
-  renderScoreSlots(container, score) {
+  renderScoreText(container, score) {
     container.innerHTML = "";
-    if (typeof score !== "number") {
-      return;
-    }
-    const suits = ["\u2660", "\u2665", "\u2666", "\u2663"];
-    const suit = suits[Math.abs(score) % suits.length];
-    const card = document.createElement("div");
-    const isRed = suit === "\u2665" || suit === "\u2666";
-    card.className = `score-card ${isRed ? "red" : ""}`.trim();
-    card.textContent = score;
-    const suitEl = document.createElement("div");
-    suitEl.className = "score-suit";
-    suitEl.textContent = suit;
-    card.appendChild(suitEl);
-    container.appendChild(card);
+    const value = document.createElement("div");
+    value.className = "score-value";
+    value.textContent = typeof score === "number" ? String(score) : "-";
+    container.appendChild(value);
   }
 
   setControlsEnabled(canAct) {
