@@ -124,6 +124,27 @@ function App() {
   const evalFill = `${50 + evalClamped * 5}%`;
   const evalWhiteLabel = `White ${evalScore > 0 ? `+${Math.abs(evalScore).toFixed(1)}` : "+0.0"}`;
   const evalBlackLabel = `Black ${evalScore < 0 ? `+${Math.abs(evalScore).toFixed(1)}` : "+0.0"}`;
+  const evalFillStyle = useMemo(() => {
+    const evalPerspective = playerColor === "black" ? -evalScore : evalScore;
+    let background = "linear-gradient(90deg, rgba(46, 186, 132, 0.9), rgba(245, 197, 66, 0.85))";
+    if (evalPerspective < 0) {
+      background = "linear-gradient(90deg, rgba(255, 107, 107, 0.95), rgba(245, 197, 66, 0.75))";
+    }
+    return { height: evalFill, background };
+  }, [evalFill, evalScore, playerColor]);
+
+  const evalLabelClasses = useMemo(() => {
+    if (evalScore === 0) {
+      return { white: "", black: "" };
+    }
+    const whiteAhead = evalScore > 0;
+    const playerIsBlack = playerColor === "black";
+    const whiteIsGood = playerIsBlack ? !whiteAhead : whiteAhead;
+    return {
+      white: whiteIsGood ? "good" : "bad",
+      black: whiteIsGood ? "bad" : "good",
+    };
+  }, [evalScore, playerColor]);
 
   const formatTime = useCallback((ms) => {
     const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -402,10 +423,12 @@ function App() {
     <>
       <div className="page-layout">
         <section
-          className={`panel panel--glass ${canBlackjackAct ? "active-panel" : ""}`}
+          className={`panel panel--glass ${canBlackjackAct ? "active-panel" : ""} ${blackjackActive ? "expanded" : "collapsed"}`}
           id="blackjack-panel"
         >
-          <h1>Blackjack</h1>
+          <div className="blackjack-tab" onClick={() => {}}>
+            <span className="tab-text">Blackjack</span>
+          </div>
           <BlackjackTable
             active={blackjackActive}
             stateText={blackjackState.stateText}
@@ -417,26 +440,6 @@ function App() {
             onHit={handleHit}
             onStand={handleStand}
           />
-          <div className="bj-divider" aria-hidden="true"></div>
-          <aside
-            className={`eval-panel eval-panel--divider ${playerColor === "black" ? "flip-labels" : ""}`}
-            id="eval-panel"
-          >
-            <div className="eval-body">
-              <div className="eval-labels">
-                <div className="eval-label" id="eval-white">
-                  {evalWhiteLabel}
-                </div>
-                <div className="eval-label" id="eval-black">
-                  {evalBlackLabel}
-                </div>
-              </div>
-              <div className="eval-bar">
-                <div className="eval-fill" id="eval-fill" style={{ width: evalFill }}></div>
-              </div>
-            </div>
-            <CapturedPanel captured={captured} />
-          </aside>
         </section>
 
         <div className="game-shell">
@@ -458,20 +461,6 @@ function App() {
                 {phase.text}
               </div>
               <div className="turn-signal" id="turn-signal">
-                <div className="turn-timers" id="turn-timers">
-                  <div className={`timer ${timerState.active === "w" && !timerState.paused ? "active" : ""}`}>
-                    <span className="timer-label">White</span>
-                    <span className="timer-value" id="timer-white-value">
-                      {formatTime(timerState.whiteMs)}
-                    </span>
-                  </div>
-                  <div className={`timer ${timerState.active === "b" && !timerState.paused ? "active" : ""}`}>
-                    <span className="timer-label">Black</span>
-                    <span className="timer-value" id="timer-black-value">
-                      {formatTime(timerState.blackMs)}
-                    </span>
-                  </div>
-                </div>
                 <div className={`turn-dot ${isMyTurn ? "go" : "wait"}`} id="turn-dot"></div>
                 <div className="turn-text" id="turn-text">
                   {turnIsReady ? (isMyTurn ? "Your turn" : "Waiting for opponent") : "Waiting..."}
@@ -483,16 +472,55 @@ function App() {
               <div className="status" id="status">
                 {status}
               </div>
-              <ChessBoard
-                fen={currentFen}
-                selectedSquare={selectedSquare}
-                playerColor={playerColor}
-                blackjackActive={blackjackActive}
-                threatenedSquare={threatenedSquare}
-                lastMove={lastMove}
-                validMoves={validMoves}
-                onSquareClick={handleSquareClick}
-              />
+              <div className="chess-main">
+                <ChessBoard
+                  fen={currentFen}
+                  selectedSquare={selectedSquare}
+                  playerColor={playerColor}
+                  blackjackActive={blackjackActive}
+                  threatenedSquare={threatenedSquare}
+                  lastMove={lastMove}
+                  validMoves={validMoves}
+                  onSquareClick={handleSquareClick}
+                />
+                <div className="chess-side">
+                  <aside className="info-panel" id="chess-info">
+                    <div className="turn-timers" id="turn-timers">
+                      <div className={`timer ${timerState.active === "w" && !timerState.paused ? "active" : ""}`}>
+                        <span className="timer-label">White</span>
+                        <span className="timer-value" id="timer-white-value">
+                          {formatTime(timerState.whiteMs)}
+                        </span>
+                      </div>
+                      <div className={`timer ${timerState.active === "b" && !timerState.paused ? "active" : ""}`}>
+                        <span className="timer-label">Black</span>
+                        <span className="timer-value" id="timer-black-value">
+                          {formatTime(timerState.blackMs)}
+                        </span>
+                      </div>
+                    </div>
+                    <CapturedPanel captured={captured} />
+                  </aside>
+                  <aside
+                    className={`eval-panel ${playerColor === "black" ? "flip-labels" : ""}`}
+                    id="eval-panel"
+                  >
+                    <div className="eval-body">
+                      <div className="eval-labels">
+                        <div className={`eval-label ${evalLabelClasses.white}`} id="eval-white">
+                          {evalWhiteLabel}
+                        </div>
+                        <div className={`eval-label ${evalLabelClasses.black}`} id="eval-black">
+                          {evalBlackLabel}
+                        </div>
+                      </div>
+                      <div className="eval-bar">
+                        <div className="eval-fill" id="eval-fill" style={evalFillStyle}></div>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+              </div>
               <div className="meta">Room: <span id="room-id">{currentRoomId || "-"}</span></div>
               <div className="meta">Color: <span id="player-color">{playerColor || "-"}</span></div>
             </section>

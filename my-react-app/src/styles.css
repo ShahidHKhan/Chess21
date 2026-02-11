@@ -46,9 +46,9 @@ body {
 }
 
 .page-layout {
-  width: min(1600px, 100%);
+  width: min(2000px, 100%);
   display: grid;
-  grid-template-columns: minmax(340px, 440px) minmax(760px, 1fr);
+  grid-template-columns: auto minmax(860px, 1fr);
   gap: 18px;
   align-items: stretch;
 }
@@ -72,7 +72,7 @@ body {
 .layout {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(520px, 1fr);
+  grid-template-columns: minmax(620px, 1fr);
   gap: 8px;
   align-items: stretch;
 }
@@ -80,8 +80,61 @@ body {
 #blackjack-panel {
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: 440px;
   min-height: clamp(520px, 62vh, 740px);
+  padding-top: 18px;
+  position: relative;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#blackjack-panel.collapsed {
+  width: 60px;
+  transform: translateX(0);
+  overflow: hidden;
+}
+
+#blackjack-panel.collapsed #blackjack-table {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#blackjack-panel.expanded {
+  width: 440px;
+  transform: translateX(0);
+}
+
+.blackjack-tab {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#blackjack-panel.collapsed .blackjack-tab {
+  pointer-events: auto;
+}
+
+#blackjack-panel.expanded .blackjack-tab {
+  opacity: 0;
+}
+
+.tab-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(245, 197, 66, 0.4);
 }
 
 #chess-panel {
@@ -147,6 +200,18 @@ h1 {
   grid-template-columns: 32px 1fr;
   gap: 8px;
   flex: 1;
+}
+
+.chess-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 16px;
+  align-items: start;
+}
+
+.chess-side {
+  display: grid;
+  gap: 12px;
 }
 
 .rank-labels {
@@ -396,8 +461,9 @@ h1 {
 }
 
 .bj-title {
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .bj-state {
@@ -555,16 +621,24 @@ h1 {
   margin-left: auto;
 }
 
+.info-panel {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(9, 14, 26, 0.6);
+  display: grid;
+  gap: 12px;
+}
+
 .eval-panel {
-  margin-top: 12px;
   padding: 12px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(9, 14, 26, 0.6);
 }
 
-.eval-panel--divider {
-  margin-top: 0;
+.eval-body {
+  align-items: center;
 }
 
 .eval-body {
@@ -581,17 +655,33 @@ h1 {
   color: var(--muted);
 }
 
+.eval-label.good {
+  color: var(--good);
+  text-shadow: 0 0 12px rgba(76, 217, 100, 0.35);
+}
+
+.eval-label.bad {
+  color: var(--bad);
+  text-shadow: 0 0 12px rgba(255, 107, 107, 0.35);
+}
+
 .eval-bar {
-  height: 10px;
+  width: 14px;
+  height: 200px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, rgba(12, 18, 32, 0.95), rgba(10, 14, 26, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
   overflow: hidden;
+  display: flex;
+  align-items: flex-end;
 }
 
 .eval-fill {
-  height: 100%;
-  background: linear-gradient(90deg, rgba(46, 186, 132, 0.7), rgba(245, 197, 66, 0.7));
-  transition: width 180ms ease;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(46, 186, 132, 0.9), rgba(245, 197, 66, 0.9));
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.25), 0 0 10px rgba(245, 197, 66, 0.25);
+  transition: height 220ms ease;
 }
 
 .eval-panel.flip-labels .eval-labels {
@@ -626,7 +716,7 @@ h1 {
 }
 
 .captured-piece {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .meta {
@@ -717,6 +807,10 @@ h1 {
 
   .board-wrap {
     grid-template-columns: 20px 1fr;
+  }
+
+  .chess-main {
+    grid-template-columns: 1fr;
   }
 
   .file-labels {
