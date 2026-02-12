@@ -117,6 +117,7 @@ function App() {
   const [inviteActions, setInviteActions] = useState({});
   const [inviteNotice, setInviteNotice] = useState(null);
   const [botMode, setBotMode] = useState(false);
+  const [blackjackEverOpened, setBlackjackEverOpened] = useState(false);
   const [resultModal, setResultModal] = useState({
     open: false,
     title: "Game Over",
@@ -230,7 +231,11 @@ function App() {
     !blackjackActive &&
     !gameOver &&
     Boolean(currentTurn && playerColor && currentTurn === playerColor[0]);
-  const canBlackjackAct = blackjackActive && !gameOver && attackerId === localSocketId;
+  const canBlackjackAct = blackjackActive && !gameOver && (
+    botMode 
+      ? (localBlackjackRef.current?.attackerColor === "w" && !localBlackjackRef.current?.locked)
+      : attackerId === localSocketId
+  );
   const turnIsReady = Boolean(currentTurn && playerColor);
   const isMyTurn = turnIsReady && currentTurn === playerColor[0];
   const isGameActive = Boolean(currentRoomId && currentTurn && !gameOver);
@@ -545,6 +550,7 @@ function App() {
       move,
     };
     setBlackjackActive(true);
+    setBlackjackEverOpened(true);
     setPendingBlackjackMove({ from: move.from, to: move.to });
     setThreatenedSquare(move.to);
     setPhase({ text: "Blackjack phase", active: true });
@@ -572,6 +578,9 @@ function App() {
     setLastMove(null);
     setPhase({ text: "Bot match", active: true });
     setStatus("Bot match started.");
+    setLocalSocketId(null);
+    setAttackerId(null);
+    setBlackjackEverOpened(false);
   }, []);
 
   const stopBotMatch = useCallback(() => {
@@ -588,6 +597,8 @@ function App() {
     setThreatenedSquare(null);
     setSelectedSquare(null);
     setValidMoves([]);
+    setAttackerId(null);
+    setBlackjackEverOpened(false);
     setLastMove(null);
     setPhase({ text: "Lobby", active: false });
     setStatus("Waiting for invite...");
@@ -844,6 +855,7 @@ function App() {
       setCurrentTurn(fen.split(" ")[1]);
       setPhase({ text: "Chess phase", active: true });
       setBlackjackActive(false);
+      setBlackjackEverOpened(false);
       setGameOver(false);
       setThreatenedSquare(null);
       setLastMove(null);
@@ -880,6 +892,7 @@ function App() {
       captureSquare,
     }) => {
       setBlackjackActive(true);
+      setBlackjackEverOpened(true);
       setAttackerId(hitterId);
       setPendingBlackjackMove(move?.from && move?.to ? { from: move.from, to: move.to } : null);
       setSelectedSquare(null);
@@ -1050,7 +1063,7 @@ function App() {
     <>
       <div className="page-layout">
         <section
-          className={`panel panel--glass ${canBlackjackAct ? "active-panel" : ""} ${blackjackActive ? "expanded" : "collapsed"}`}
+          className={`panel panel--glass ${canBlackjackAct ? "active-panel" : ""} ${blackjackActive || blackjackEverOpened ? "expanded" : "collapsed"}`}
           id="blackjack-panel"
         >
           <div className="blackjack-tab" onClick={() => {}}>
