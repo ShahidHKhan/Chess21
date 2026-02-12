@@ -18,6 +18,12 @@ class RoomManager {
     return room;
   }
 
+  createRoomWithId(roomId, socketId) {
+    const room = new Room(roomId, socketId);
+    this.rooms.set(roomId, room);
+    return room;
+  }
+
   joinWaitingRoom(socketId) {
     if (this.waitingRooms.length === 0) {
       return null;
@@ -44,6 +50,31 @@ class RoomManager {
     }
 
     return { room, color: "black", started: true };
+  }
+
+  assignInviteRoom(roomId, socketId) {
+    const existing = this.rooms.get(roomId);
+    if (!existing) {
+      const room = this.createRoomWithId(roomId, socketId);
+      return { room, color: "white", started: false };
+    }
+
+    if (existing.players[socketId]) {
+      return {
+        room: existing,
+        color: existing.players[socketId],
+        started: Object.keys(existing.players).length === 2,
+      };
+    }
+
+    if (Object.keys(existing.players).length >= 2) {
+      return null;
+    }
+
+    const hasWhite = Object.values(existing.players).includes("white");
+    const color = hasWhite ? "black" : "white";
+    existing.players[socketId] = color;
+    return { room: existing, color, started: Object.keys(existing.players).length === 2 };
   }
 
   getRoom(roomId) {

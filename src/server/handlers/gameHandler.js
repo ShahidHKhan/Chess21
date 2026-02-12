@@ -133,27 +133,6 @@ function startDealerDraw(io, roomId, roomState) {
 }
 
 module.exports = (io, socket, roomManager) => {
-  const { room, color, started } = roomManager.assignRoom(socket.id);
-  socket.join(room.id);
-  socket.emit(EVENTS.ROOM_ASSIGNED, { roomId: room.id, color });
-  if (room.timers) {
-    setActiveTimer(room, { paused: !started });
-    socket.emit(EVENTS.TIMER_UPDATE, {
-      whiteMs: room.timers.whiteMs,
-      blackMs: room.timers.blackMs,
-      active: room.timers.active,
-      paused: room.timers.paused,
-    });
-  }
-  if (started) {
-    setActiveTimer(room, { paused: false });
-    io.to(room.id).emit(EVENTS.GAME_READY, {
-      fen: room.game.fen(),
-      captured: room.captured,
-    });
-    emitTimerUpdate(io, room.id, room);
-  }
-
   socket.on(EVENTS.MAKE_MOVE, ({ roomId, move }) => {
     const roomState = roomManager.getRoom(roomId);
     if (!roomState) {
@@ -363,6 +342,46 @@ module.exports = (io, socket, roomManager) => {
     roomState.timers.paused = !roomState.timers.paused;
     roomState.timers.lastTick = Date.now();
     emitTimerUpdate(io, roomId, roomState);
+  });
+
+  socket.on(EVENTS.JOIN_INVITE_ROOM, ({ roomId }) => {
+    if (!roomId) {
+      return;
+    }
+
+    const previousRoomId = roomManager.removePlayer(socket.id);
+    if (previousRoomId) {
+      socket.leave(previousRoomId);
+      io.to(previousRoomId).emit(EVENTS.PLAYER_LEFT, { message: "Opponent disconnected." });
+    }
+
+    const assignment = roomManager.assignInviteRoom(roomId, socket.id);
+    if (!assignment) {
+      socket.emit(EVENTS.MOVE_REJECTED, { reason: "Room is full." });
+      return;
+    }
+
+    socket.join(assignment.room.id);
+    socket.emit(EVENTS.ROOM_ASSIGNED, { roomId: assignment.room.id, color: assignment.color });
+
+    if (assignment.room.timers) {
+      setActiveTimer(assignment.room, { paused: !assignment.started });
+      socket.emit(EVENTS.TIMER_UPDATE, {
+        whiteMs: assignment.room.timers.whiteMs,
+        blackMs: assignment.room.timers.blackMs,
+        active: assignment.room.timers.active,
+        paused: assignment.room.timers.paused,
+      });
+    }
+
+    if (assignment.started) {
+      setActiveTimer(assignment.room, { paused: false });
+      io.to(assignment.room.id).emit(EVENTS.GAME_READY, {
+        fen: assignment.room.game.fen(),
+        captured: assignment.room.captured,
+      });
+      emitTimerUpdate(io, assignment.room.id, assignment.room);
+    }
   });
 
   socket.on("disconnect", () => {

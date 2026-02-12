@@ -13,6 +13,7 @@
     BLACKJACK_STAND: "blackjack-stand",
     TIMER_UPDATE: "timer-update",
     TIMER_TOGGLE: "timer-toggle",
+    JOIN_INVITE_ROOM: "join-invite-room",
   };
 
   const PHASES = {

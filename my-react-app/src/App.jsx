@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { Chess } from "chess.js";
+import {
+  addDoc,
+  collection,
+  doc,
+  limit,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { EVENTS } from "./shared/constants.js";
 import { calculateMaterialScore, fenToBoard } from "./utils/fen.js";
+import { db } from "./utils/firebase.js";
+import { useAuth } from "./context/AuthContext.jsx";
 import { BlackjackTable } from "./components/BlackjackTable.jsx";
 import { CapturedPanel } from "./components/CapturedPanel.jsx";
 import { ChessBoard } from "./components/ChessBoard.jsx";
+import LoginButton from "./components/LoginButton.jsx";
 import { ResultModal } from "./components/ResultModal.jsx";
 
 const baseFileLabels = ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -69,6 +83,11 @@ function App() {
   const pendingTimeoutRef = useRef(null);
   const pendingBlackjackMoveRef = useRef(null);
   const localSocketIdRef = useRef(null);
+  const joinedInviteRoomsRef = useRef(new Set());
+  const pendingInviteRoomsRef = useRef(new Set());
+  const localGameRef = useRef(null);
+  const localBlackjackRef = useRef(null);
+  const { currentUser } = useAuth();
 
   const [status, setStatus] = useState("Connecting to server...");
   const [phase, setPhase] = useState({ text: "Connecting...", active: false });
@@ -88,6 +107,16 @@ function App() {
   const [timerState, setTimerState] = useState(initialTimerState);
   const [blackjackState, setBlackjackState] = useState(initialBlackjackState);
   const [captured, setCaptured] = useState({ white: [], black: [] });
+  const [userSearch, setUserSearch] = useState("");
+  const [recentSentInvites, setRecentSentInvites] = useState([]);
+  const [recentReceivedInvites, setRecentReceivedInvites] = useState([]);
+  const [recentLoading, setRecentLoading] = useState({ sent: false, received: false });
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteStatus, setInviteStatus] = useState(null);
+  const [incomingInvites, setIncomingInvites] = useState([]);
+  const [inviteActions, setInviteActions] = useState({});
+  const [inviteNotice, setInviteNotice] = useState(null);
+  const [botMode, setBotMode] = useState(false);
   const [resultModal, setResultModal] = useState({
     open: false,
     title: "Game Over",
@@ -111,6 +140,92 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const senderEmail = currentUser?.email?.toLowerCase();
+    if (!senderEmail) {
+      setRecentSentInvites([]);
+      setRecentLoading((prev) => ({ ...prev, sent: false }));
+      return;
+    }
+    setRecentLoading((prev) => ({ ...prev, sent: true }));
+    const sentQuery = query(
+      collection(db, "invites"),
+      where("fromEmail", "==", senderEmail),
+      where("status", "==", "accepted"),
+      limit(20)
+    );
+    const unsubscribe = onSnapshot(
+      sentQuery,
+      (snapshot) => {
+        const entries = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setRecentSentInvites(entries);
+        setRecentLoading((prev) => ({ ...prev, sent: false }));
+      },
+      () => {
+        setRecentLoading((prev) => ({ ...prev, sent: false }));
+      }
+    );
+    return unsubscribe;
+  }, [currentUser]);
+
+  useEffect(() => {
+    const recipientEmail = currentUser?.email?.toLowerCase();
+    if (!recipientEmail) {
+      setRecentReceivedInvites([]);
+      setRecentLoading((prev) => ({ ...prev, received: false }));
+      return;
+    }
+    setRecentLoading((prev) => ({ ...prev, received: true }));
+    const receivedQuery = query(
+      collection(db, "invites"),
+      where("toEmail", "==", recipientEmail),
+      where("status", "==", "accepted"),
+      limit(20)
+    );
+    const unsubscribe = onSnapshot(
+      receivedQuery,
+      (snapshot) => {
+        const entries = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setRecentReceivedInvites(entries);
+        setRecentLoading((prev) => ({ ...prev, received: false }));
+      },
+      () => {
+        setRecentLoading((prev) => ({ ...prev, received: false }));
+      }
+    );
+    return unsubscribe;
+  }, [currentUser]);
+
+  useEffect(() => {
+    const recipientEmail = currentUser?.email?.toLowerCase();
+    if (!recipientEmail) {
+      setIncomingInvites([]);
+      return;
+    }
+    const invitesQuery = query(
+      collection(db, "invites"),
+      where("toEmail", "==", recipientEmail),
+      where("status", "==", "pending"),
+      limit(10)
+    );
+    const unsubscribe = onSnapshot(
+      invitesQuery,
+      (snapshot) => {
+        const entries = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        entries.sort((a, b) => {
+          const aSeconds = a?.createdAt?.seconds || 0;
+          const bSeconds = b?.createdAt?.seconds || 0;
+          return bSeconds - aSeconds;
+        });
+        setIncomingInvites(entries);
+      },
+      (error) => {
+        console.error("Invite listener error:", error);
+      }
+    );
+    return unsubscribe;
+  }, [currentUser]);
+
   const canChessAct =
     !blackjackActive &&
     !gameOver &&
@@ -118,6 +233,7 @@ function App() {
   const canBlackjackAct = blackjackActive && !gameOver && attackerId === localSocketId;
   const turnIsReady = Boolean(currentTurn && playerColor);
   const isMyTurn = turnIsReady && currentTurn === playerColor[0];
+  const isGameActive = Boolean(currentRoomId && currentTurn && !gameOver);
 
   const evalScore = useMemo(() => calculateMaterialScore(currentFen), [currentFen]);
   const evalClamped = Math.max(-10, Math.min(10, evalScore));
@@ -145,6 +261,426 @@ function App() {
       black: whiteIsGood ? "bad" : "good",
     };
   }, [evalScore, playerColor]);
+
+  const recentOpponents = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+    const me = currentUser.email?.toLowerCase() || "";
+    const combined = [...recentSentInvites, ...recentReceivedInvites];
+    const byEmail = new Map();
+    combined.forEach((invite) => {
+      const isSender = invite.fromEmail?.toLowerCase() === me;
+      const opponentEmail = isSender ? invite.toEmail : invite.fromEmail;
+      if (!opponentEmail) {
+        return;
+      }
+      const opponentName = isSender ? invite.toName || invite.toEmail : invite.fromName || invite.fromEmail;
+      const lastPlayed = invite.respondedAt?.seconds || invite.createdAt?.seconds || 0;
+      const existing = byEmail.get(opponentEmail);
+      if (!existing || lastPlayed > existing.lastPlayed) {
+        byEmail.set(opponentEmail, {
+          email: opponentEmail,
+          name: opponentName || opponentEmail,
+          lastPlayed,
+        });
+      }
+    });
+    return Array.from(byEmail.values()).sort((a, b) => b.lastPlayed - a.lastPlayed).slice(0, 8);
+  }, [currentUser, recentReceivedInvites, recentSentInvites]);
+
+  const filteredOpponents = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+    const normalized = userSearch.trim().toLowerCase();
+    if (!normalized) {
+      return recentOpponents;
+    }
+    return recentOpponents.filter((opponent) => {
+      const email = opponent.email?.toLowerCase() || "";
+      const name = opponent.name?.toLowerCase() || "";
+      return email.includes(normalized) || name.includes(normalized);
+    });
+  }, [currentUser, recentOpponents, userSearch]);
+
+  const handleSendInvite = useCallback(async () => {
+    if (!currentUser) {
+      return;
+    }
+    const trimmedEmail = userSearch.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setInviteStatus("Enter an email to invite.");
+      return;
+    }
+    if (currentUser.email && trimmedEmail === currentUser.email.toLowerCase()) {
+      setInviteStatus("You cannot invite yourself.");
+      return;
+    }
+    setInviteSending(true);
+    setInviteStatus(null);
+    try {
+      await addDoc(collection(db, "invites"), {
+        fromUid: currentUser.uid,
+        fromEmail: currentUser.email?.toLowerCase() || "",
+        fromName: currentUser.displayName || "",
+        toEmail: trimmedEmail,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      setInviteStatus("Invite sent.");
+    } catch (error) {
+      console.error("Invite failed:", error);
+      setInviteStatus("Invite failed. Try again.");
+    } finally {
+      setInviteSending(false);
+    }
+  }, [currentUser, userSearch]);
+
+  const joinInviteRoom = useCallback((roomId) => {
+    if (!roomId || joinedInviteRoomsRef.current.has(roomId)) {
+      return;
+    }
+    if (!socketRef.current) {
+      pendingInviteRoomsRef.current.add(roomId);
+      return;
+    }
+    socketRef.current.emit(EVENTS.JOIN_INVITE_ROOM, { roomId });
+    joinedInviteRoomsRef.current.add(roomId);
+    pendingInviteRoomsRef.current.delete(roomId);
+  }, []);
+
+  const swapEngineTurn = useCallback((engine) => {
+    const parts = engine.fen().split(" ");
+    parts[1] = parts[1] === "w" ? "b" : "w";
+    engine.load(parts.join(" "));
+  }, []);
+
+  const createDeck = useCallback(() => {
+    const suits = ["S", "H", "D", "C"];
+    const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+    const deck = [];
+    suits.forEach((suit) => {
+      ranks.forEach((rank) => {
+        deck.push(`${rank}${suit}`);
+      });
+    });
+    return deck;
+  }, []);
+
+  const shuffleDeck = useCallback((deck) => {
+    for (let i = deck.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }, []);
+
+  const handScore = useCallback((hand) => {
+    let total = 0;
+    let aces = 0;
+    hand.forEach((card) => {
+      const rank = card.slice(0, -1);
+      if (rank === "A") {
+        aces += 1;
+        total += 11;
+      } else if (["K", "Q", "J"].includes(rank)) {
+        total += 10;
+      } else {
+        total += Number(rank);
+      }
+    });
+    while (total > 21 && aces > 0) {
+      total -= 10;
+      aces -= 1;
+    }
+    return total;
+  }, []);
+
+  const shouldDealerHit = useCallback((hand) => handScore(hand) < 17, [handScore]);
+
+  const updateLocalBlackjackView = useCallback(() => {
+    const state = localBlackjackRef.current;
+    if (!state) {
+      return;
+    }
+    setBlackjackState({
+      dealerHand: state.dealerHand,
+      hitterHand: state.hitterHand,
+      dealerScore: handScore(state.dealerHand),
+      hitterScore: handScore(state.hitterHand),
+      stateText: state.attackerColor === "w" ? "You are attacking" : "Defending",
+      controlsEnabled: state.attackerColor === "w" && !state.locked,
+    });
+  }, [handScore]);
+
+  const finishLocalBlackjack = useCallback((engine, move, attackerWins, isPush) => {
+    let gameOverLocal = false;
+    const attackerPiece = engine.get(move.from);
+    const attackerColor = attackerPiece?.color || move.color || engine.turn();
+    const defenderColor = attackerColor === "w" ? "b" : "w";
+
+    if (attackerWins) {
+      engine.move(move);
+      setLastMove({ from: move.from, to: move.to });
+    } else if (!isPush) {
+      if (attackerPiece && attackerPiece.type === "k") {
+        engine.remove(move.from);
+        gameOverLocal = true;
+        setStatus("King was eaten after losing blackjack. Game over.");
+      } else {
+        if (engine.turn() !== defenderColor) {
+          swapEngineTurn(engine);
+        }
+        const reverseMove = engine.moves({ verbose: true }).find(
+          (candidate) => candidate.from === move.to && candidate.to === move.from
+        );
+        if (reverseMove) {
+          engine.move(reverseMove);
+        } else if (attackerPiece) {
+          engine.remove(move.from);
+        }
+      }
+    }
+
+    if ((!attackerWins || isPush) && !gameOverLocal) {
+      if (engine.turn() !== defenderColor) {
+        swapEngineTurn(engine);
+      }
+    }
+
+    setCurrentFen(engine.fen());
+    setCurrentTurn(engine.turn());
+    setBlackjackActive(false);
+    setPendingBlackjackMove(null);
+    setThreatenedSquare(null);
+    setPhase({ text: gameOverLocal ? "Game over" : "Chess phase", active: !gameOverLocal });
+    if (!gameOverLocal) {
+      if (isPush) {
+        setStatus("Push: no pieces captured.");
+      } else {
+        setStatus(attackerWins ? "Capture stands." : "Capture canceled.");
+      }
+    }
+    if (gameOverLocal || engine.isGameOver()) {
+      setGameOver(true);
+      setPhase({ text: "Game over", active: false });
+      setStatus("Game over.");
+    }
+  }, [swapEngineTurn]);
+
+  const runDealerDraw = useCallback((engine, move, attackerColor) => {
+    const state = localBlackjackRef.current;
+    if (!state) {
+      return;
+    }
+    const drawStep = () => {
+      if (!state) {
+        return;
+      }
+      if (shouldDealerHit(state.dealerHand)) {
+        state.dealerHand.push(state.deck.pop());
+        updateLocalBlackjackView();
+        setTimeout(drawStep, 500);
+        return;
+      }
+      const dealerScore = handScore(state.dealerHand);
+      const hitterScore = handScore(state.hitterHand);
+      let outcome = "DEFENDER";
+      if (dealerScore > 21 || hitterScore > dealerScore) {
+        outcome = "ATTACKER";
+      } else if (dealerScore === hitterScore) {
+        outcome = "PUSH";
+      }
+      const attackerWins = outcome === "ATTACKER";
+      const isPush = outcome === "PUSH";
+      state.locked = true;
+      updateLocalBlackjackView();
+      finishLocalBlackjack(engine, move, attackerWins, isPush);
+      localBlackjackRef.current = null;
+    };
+    setTimeout(drawStep, 500);
+  }, [finishLocalBlackjack, handScore, shouldDealerHit, updateLocalBlackjackView]);
+
+  const runBotHitterTurn = useCallback((engine, move) => {
+    const state = localBlackjackRef.current;
+    if (!state) {
+      return;
+    }
+    const hitStep = () => {
+      if (!state) {
+        return;
+      }
+      const score = handScore(state.hitterHand);
+      if (score < 17) {
+        state.hitterHand.push(state.deck.pop());
+        updateLocalBlackjackView();
+        if (handScore(state.hitterHand) > 21) {
+          state.locked = true;
+          updateLocalBlackjackView();
+          finishLocalBlackjack(engine, move, false, false);
+          localBlackjackRef.current = null;
+          return;
+        }
+        setTimeout(hitStep, 500);
+        return;
+      }
+      state.locked = true;
+      updateLocalBlackjackView();
+      runDealerDraw(engine, move, "b");
+    };
+    setTimeout(hitStep, 500);
+  }, [finishLocalBlackjack, handScore, runDealerDraw, updateLocalBlackjackView]);
+
+  const startLocalBlackjack = useCallback((engine, move, attackerColor) => {
+    const deck = shuffleDeck(createDeck());
+    const hitterHand = [deck.pop(), deck.pop()];
+    const dealerHand = [deck.pop()];
+    localBlackjackRef.current = {
+      deck,
+      hitterHand,
+      dealerHand,
+      attackerColor,
+      locked: attackerColor !== "w",
+      move,
+    };
+    setBlackjackActive(true);
+    setPendingBlackjackMove({ from: move.from, to: move.to });
+    setThreatenedSquare(move.to);
+    setPhase({ text: "Blackjack phase", active: true });
+    setStatus("Blackjack duel started.");
+    updateLocalBlackjackView();
+    if (attackerColor === "b") {
+      runBotHitterTurn(engine, move);
+    }
+  }, [createDeck, runBotHitterTurn, shuffleDeck, updateLocalBlackjackView]);
+
+  const startBotMatch = useCallback(() => {
+    const engine = new Chess();
+    localGameRef.current = engine;
+    setBotMode(true);
+    setCurrentFen(engine.fen());
+    setCurrentTurn(engine.turn());
+    setPlayerColor("white");
+    setCurrentRoomId("bot-local");
+    setGameOver(false);
+    setBlackjackActive(false);
+    setBlackjackState(initialBlackjackState);
+    setThreatenedSquare(null);
+    setSelectedSquare(null);
+    setValidMoves([]);
+    setLastMove(null);
+    setPhase({ text: "Bot match", active: true });
+    setStatus("Bot match started.");
+  }, []);
+
+  const stopBotMatch = useCallback(() => {
+    setBotMode(false);
+    localGameRef.current = null;
+    localBlackjackRef.current = null;
+    setCurrentFen(null);
+    setCurrentTurn(null);
+    setPlayerColor(null);
+    setCurrentRoomId(null);
+    setGameOver(false);
+    setBlackjackActive(false);
+    setBlackjackState(initialBlackjackState);
+    setThreatenedSquare(null);
+    setSelectedSquare(null);
+    setValidMoves([]);
+    setLastMove(null);
+    setPhase({ text: "Lobby", active: false });
+    setStatus("Waiting for invite...");
+  }, []);
+
+  const applyLocalMove = useCallback((from, to) => {
+    const engine = localGameRef.current;
+    if (!engine) {
+      return;
+    }
+    const legalMoves = engine.moves({ verbose: true });
+    const legalMove = legalMoves.find((move) => move.from === from && move.to === to);
+    if (!legalMove) {
+      setStatus("Illegal move.");
+      return;
+    }
+    if (legalMove.captured) {
+      startLocalBlackjack(engine, legalMove, "w");
+      return;
+    }
+    engine.move(legalMove);
+    setCurrentFen(engine.fen());
+    setCurrentTurn(engine.turn());
+    setLastMove({ from: legalMove.from, to: legalMove.to });
+    setStatus(`Move: ${legalMove.san}`);
+    if (engine.isGameOver()) {
+      setGameOver(true);
+      setPhase({ text: "Game over", active: false });
+      setStatus("Game over.");
+    }
+  }, [startLocalBlackjack]);
+
+  const handleLocalHit = useCallback(() => {
+    const engine = localGameRef.current;
+    const state = localBlackjackRef.current;
+    if (!engine || !state || state.locked || state.attackerColor !== "w") {
+      return;
+    }
+    state.hitterHand.push(state.deck.pop());
+    updateLocalBlackjackView();
+    if (handScore(state.hitterHand) > 21) {
+      state.locked = true;
+      updateLocalBlackjackView();
+      finishLocalBlackjack(engine, state.move, false, false);
+      localBlackjackRef.current = null;
+    }
+  }, [finishLocalBlackjack, handScore, updateLocalBlackjackView]);
+
+  const handleLocalStand = useCallback(() => {
+    const engine = localGameRef.current;
+    const state = localBlackjackRef.current;
+    if (!engine || !state || state.locked || state.attackerColor !== "w") {
+      return;
+    }
+    state.locked = true;
+    updateLocalBlackjackView();
+    runDealerDraw(engine, state.move, "w");
+  }, [runDealerDraw, updateLocalBlackjackView]);
+
+  const handleInviteAction = useCallback(async (invite, status) => {
+    if (!currentUser) {
+      return;
+    }
+    const inviteId = invite?.id;
+    if (!inviteId) {
+      return;
+    }
+    setInviteActions((prev) => ({ ...prev, [inviteId]: true }));
+    setInviteNotice(null);
+    try {
+      const roomId = status === "accepted"
+        ? invite.roomId || `invite-${inviteId}`
+        : invite.roomId || null;
+      await updateDoc(doc(db, "invites", inviteId), {
+        status,
+        roomId,
+        respondedAt: serverTimestamp(),
+      });
+      setInviteNotice(status === "accepted" ? "Invite accepted." : "Invite declined.");
+      if (status === "accepted" && roomId) {
+        joinInviteRoom(roomId);
+      }
+    } catch (error) {
+      console.error("Invite update failed:", error);
+      setInviteNotice("Invite update failed. Try again.");
+    } finally {
+      setInviteActions((prev) => {
+        const next = { ...prev };
+        delete next[inviteId];
+        return next;
+      });
+    }
+  }, [currentUser, joinInviteRoom]);
 
   const formatTime = useCallback((ms) => {
     const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -250,14 +786,19 @@ function App() {
       }
 
       const targetSquare = resolveCastlingTarget(currentFen, selectedSquare, square);
-      socketRef.current?.emit(EVENTS.MAKE_MOVE, {
-        roomId: currentRoomId,
-        move: { from: selectedSquare, to: targetSquare },
-      });
+      if (botMode) {
+        applyLocalMove(selectedSquare, targetSquare);
+      } else {
+        socketRef.current?.emit(EVENTS.MAKE_MOVE, {
+          roomId: currentRoomId,
+          move: { from: selectedSquare, to: targetSquare },
+        });
+      }
       setSelectedSquare(null);
       setValidMoves([]);
     },
     [
+      botMode,
       blackjackActive,
       gameOver,
       currentRoomId,
@@ -266,16 +807,29 @@ function App() {
       playerColor,
       selectedSquare,
       getValidMovesForSquare,
+      applyLocalMove,
     ]
   );
 
   useEffect(() => {
+    if (botMode) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return undefined;
+    }
     const serverUrl = import.meta.env.DEV ? "http://localhost:3000" : undefined;
     const socket = serverUrl ? io(serverUrl) : io();
     socketRef.current = socket;
 
     socket.on("connect", () => {
       setLocalSocketId(socket.id);
+      pendingInviteRoomsRef.current.forEach((roomId) => {
+        socket.emit(EVENTS.JOIN_INVITE_ROOM, { roomId });
+        joinedInviteRoomsRef.current.add(roomId);
+      });
+      pendingInviteRoomsRef.current.clear();
       setStatus("Connected. Waiting for opponent...");
     });
 
@@ -396,21 +950,94 @@ function App() {
     return () => {
       socket.disconnect();
     };
-  }, [queueBoardUpdate]);
+  }, [botMode, queueBoardUpdate]);
+
+  useEffect(() => {
+    if (!botMode) {
+      return undefined;
+    }
+    const engine = localGameRef.current;
+    if (!engine || gameOver || blackjackActive || pendingBlackjackMove) {
+      return undefined;
+    }
+    if (engine.turn() !== "b") {
+      return undefined;
+    }
+    const timeoutId = setTimeout(() => {
+      const moves = engine.moves({ verbose: true });
+      if (moves.length === 0) {
+        setGameOver(true);
+        setPhase({ text: "Game over", active: false });
+        setStatus("Game over.");
+        return;
+      }
+      const choice = moves[Math.floor(Math.random() * moves.length)];
+      if (choice.captured) {
+        startLocalBlackjack(engine, choice, "b");
+        return;
+      }
+      engine.move(choice);
+      setCurrentFen(engine.fen());
+      setCurrentTurn(engine.turn());
+      setLastMove({ from: choice.from, to: choice.to });
+      if (engine.isGameOver()) {
+        setGameOver(true);
+        setPhase({ text: "Game over", active: false });
+        setStatus("Game over.");
+      }
+    }, 600);
+    return () => clearTimeout(timeoutId);
+  }, [botMode, currentTurn, gameOver, blackjackActive, pendingBlackjackMove, startLocalBlackjack]);
+
+  useEffect(() => {
+    const senderEmail = currentUser?.email?.toLowerCase();
+    if (!senderEmail) {
+      return;
+    }
+    const outgoingQuery = query(
+      collection(db, "invites"),
+      where("fromEmail", "==", senderEmail),
+      where("status", "==", "accepted"),
+      limit(5)
+    );
+    const unsubscribe = onSnapshot(
+      outgoingQuery,
+      (snapshot) => {
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data?.roomId) {
+            joinInviteRoom(data.roomId);
+          }
+        });
+      },
+      (error) => {
+        console.error("Outgoing invite listener error:", error);
+      }
+    );
+    return unsubscribe;
+  }, [currentUser, joinInviteRoom]);
 
   const handleHit = useCallback(() => {
+    if (botMode) {
+      handleLocalHit();
+      return;
+    }
     if (!currentRoomId || !blackjackActive) {
       return;
     }
     socketRef.current?.emit(EVENTS.BLACKJACK_HIT, { roomId: currentRoomId });
-  }, [currentRoomId, blackjackActive]);
+  }, [botMode, currentRoomId, blackjackActive, handleLocalHit]);
 
   const handleStand = useCallback(() => {
+    if (botMode) {
+      handleLocalStand();
+      return;
+    }
     if (!currentRoomId || !blackjackActive) {
       return;
     }
     socketRef.current?.emit(EVENTS.BLACKJACK_STAND, { roomId: currentRoomId });
-  }, [currentRoomId, blackjackActive]);
+  }, [botMode, currentRoomId, blackjackActive, handleLocalStand]);
 
   const handleTimerToggle = useCallback(() => {
     if (!currentRoomId) {
@@ -445,7 +1072,7 @@ function App() {
         <div className="game-shell">
           <div className="layout">
             <section
-              className={`panel ${canChessAct ? "active-panel" : ""}`}
+              className={`panel ${canChessAct ? "active-panel" : ""} ${currentUser ? "" : "dimmed"} ${isGameActive ? "" : "inactive"}`}
               id="chess-panel"
             >
               <h1>Chess21</h1>
@@ -527,6 +1154,114 @@ function App() {
             </section>
           </div>
         </div>
+
+        <aside
+          className={`panel panel--glass player-panel ${currentUser ? "" : "needs-login"} ${isGameActive ? "" : "idle-glow"}`}
+          id="player-panel"
+        >
+          <h2 className="player-panel-title">Player Hub</h2>
+          <div className="player-auth">
+            <LoginButton />
+          </div>
+          {!currentUser ? (
+            <div className="player-actions">
+              <p className="player-panel-copy">Sign in with Google to invite a player and start the match.</p>
+            </div>
+          ) : (
+            <div className="player-actions">
+              <div className="invite-panel">
+                <div className="invite-title">Invites</div>
+                {incomingInvites.length === 0 ? (
+                  <div className="invite-empty">No invites yet</div>
+                ) : (
+                  <ul className="invite-items">
+                    {incomingInvites.map((invite) => (
+                      <li key={invite.id} className="invite-item">
+                        <div className="invite-meta">
+                          <div className="invite-name">{invite.fromName || "Player"}</div>
+                          <div className="invite-email">{invite.fromEmail}</div>
+                        </div>
+                        <div className="invite-actions">
+                          <button
+                            className="btn"
+                            type="button"
+                            onClick={() => handleInviteAction(invite, "accepted")}
+                            disabled={inviteActions[invite.id]}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            className="btn secondary"
+                            type="button"
+                            onClick={() => handleInviteAction(invite, "declined")}
+                            disabled={inviteActions[invite.id]}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {inviteNotice ? <div className="invite-empty">{inviteNotice}</div> : null}
+              </div>
+              <label className="player-label" htmlFor="player-search">
+                Find by email
+              </label>
+              <div className="player-search">
+                <input
+                  className="player-input"
+                  id="player-search"
+                  type="email"
+                  placeholder="player@example.com"
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                />
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={handleSendInvite}
+                  disabled={inviteSending || !userSearch.trim()}
+                >
+                  {inviteSending ? "Sending..." : "Send invite"}
+                </button>
+              </div>
+              {inviteStatus ? <div className="player-muted">{inviteStatus}</div> : null}
+              <div className="player-list">
+                <div className="player-list-title">Recently played</div>
+                {recentLoading.sent || recentLoading.received ? (
+                  <div className="player-muted">Loading recent opponents...</div>
+                ) : filteredOpponents.length === 0 ? (
+                  <div className="player-muted">No recent opponents yet</div>
+                ) : (
+                  <ul className="player-items">
+                    {filteredOpponents.map((opponent) => (
+                      <li key={opponent.email} className="player-item">
+                        <div className="player-avatar">
+                          <span>{opponent.name?.[0] || "?"}</span>
+                        </div>
+                        <div className="player-meta">
+                          <div className="player-name">{opponent.name || "Player"}</div>
+                          <div className="player-email">{opponent.email}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="bot-panel">
+            <div className="bot-title">Verse a bot</div>
+            <button
+              className="btn"
+              type="button"
+              onClick={botMode ? stopBotMatch : startBotMatch}
+            >
+              {botMode ? "End bot match" : "Start bot match"}
+            </button>
+          </div>
+        </aside>
       </div>
 
       <ResultModal

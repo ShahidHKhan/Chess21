@@ -42,13 +42,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: clamp(16px, 3vw, 36px);
 }
 
 .page-layout {
-  width: min(2000px, 100%);
+  width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(860px, 1fr);
+  grid-template-columns: auto minmax(860px, 1fr) minmax(220px, 280px);
   gap: 18px;
   align-items: stretch;
 }
@@ -75,6 +75,233 @@ body {
   grid-template-columns: minmax(620px, 1fr);
   gap: 8px;
   align-items: stretch;
+}
+
+.player-panel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: clamp(520px, 62vh, 740px);
+}
+
+.player-panel.needs-login {
+  border-color: rgba(245, 197, 66, 0.5);
+  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.35), 0 0 26px rgba(245, 197, 66, 0.35),
+    0 0 60px rgba(245, 197, 66, 0.25);
+}
+
+.player-panel.idle-glow {
+  border-color: rgba(120, 180, 255, 0.35);
+  box-shadow: 0 0 0 1px rgba(120, 180, 255, 0.25), 0 0 18px rgba(120, 180, 255, 0.25),
+    0 0 40px rgba(120, 180, 255, 0.18);
+}
+
+.player-panel-title {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  font-family: "Orbitron", "Segoe UI", sans-serif;
+  text-transform: uppercase;
+}
+
+.player-panel-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.player-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.player-actions .btn {
+  width: 100%;
+}
+
+.player-auth {
+  display: grid;
+  gap: 8px;
+}
+
+.invite-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 10, 20, 0.45);
+}
+
+.bot-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 10, 20, 0.45);
+}
+
+.bot-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.invite-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.invite-empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.invite-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.invite-item {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 16, 30, 0.55);
+}
+
+.invite-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.invite-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.invite-email {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.invite-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.invite-actions .btn {
+  width: 100%;
+}
+
+.player-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.player-search {
+  display: grid;
+  gap: 8px;
+}
+
+.player-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(6, 10, 20, 0.5);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.player-input::placeholder {
+  color: rgba(154, 166, 198, 0.7);
+}
+
+.player-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.player-list-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.player-muted {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.player-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.player-item {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(6, 10, 20, 0.4);
+}
+
+.player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(245, 197, 66, 0.15);
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.player-email {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.panel.dimmed {
+  opacity: 0.55;
+  filter: grayscale(0.25);
+}
+
+.panel.inactive {
+  opacity: 0.7;
+  filter: saturate(0.8);
 }
 
 #blackjack-panel {
