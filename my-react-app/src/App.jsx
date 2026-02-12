@@ -501,21 +501,22 @@ function App() {
                     </div>
                     <CapturedPanel captured={captured} />
                   </aside>
-                  <aside
-                    className={`eval-panel ${playerColor === "black" ? "flip-labels" : ""}`}
-                    id="eval-panel"
-                  >
+                  <aside className="eval-panel" id="eval-panel">
                     <div className="eval-body">
-                      <div className="eval-labels">
-                        <div className={`eval-label ${evalLabelClasses.white}`} id="eval-white">
-                          {evalWhiteLabel}
-                        </div>
-                        <div className={`eval-label ${evalLabelClasses.black}`} id="eval-black">
-                          {evalBlackLabel}
-                        </div>
+                      <div
+                        className={`eval-label eval-label-top ${playerColor === "black" ? evalLabelClasses.white : evalLabelClasses.black}`}
+                        id="eval-top"
+                      >
+                        {playerColor === "black" ? evalWhiteLabel : evalBlackLabel}
                       </div>
                       <div className="eval-bar">
                         <div className="eval-fill" id="eval-fill" style={evalFillStyle}></div>
+                      </div>
+                      <div
+                        className={`eval-label eval-label-bottom ${playerColor === "black" ? evalLabelClasses.black : evalLabelClasses.white}`}
+                        id="eval-bottom"
+                      >
+                        {playerColor === "black" ? evalBlackLabel : evalWhiteLabel}
                       </div>
                     </div>
                   </aside>
