@@ -1,5 +1,7 @@
 # Chess21
 
+https://chess21.onrender.com
+
 Chess21 is a multiplayer web-based game that combines chess with blackjack duels. When a capture is attempted, a blackjack duel determines if the capture succeeds.
 
 ## 🎮 How to Play
