@@ -254,4 +254,4 @@ npm start
 
 ---
 
-<img width="1024" height="559" alt="Chess21 gameplay screenshot" src="https://github.com/user-attachments/assets/ba1d6392-306b-489a-a810-b6e76b4a8cb6" />
+<img width="1024" height="559" alt="Chess21 System Architecture and Software Structure" src="https://raw.githubusercontent.com/ShahidHKhan/Chess21/main/Chess21Structure.png" />
